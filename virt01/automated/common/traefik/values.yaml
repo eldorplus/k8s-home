@@ -18,7 +18,7 @@ traefik:
   service:
     enabled: true
     annotations:
-      metallb.universe.tf/address-pool: vlan1000-infra
+      metallb.io/address-pool: vlan1000-infra
       external-dns.alpha.kubernetes.io/hostname: traefik.k3s.nf.lab
       external-dns.alpha.kubernetes.io/access: public
     type: LoadBalancer
@@ -28,10 +28,12 @@ traefik:
   ingressRoute:
     dashboard:
       enabled: true
-
-  metrics:
-    prometheus:
-      entryPoint: metrics
+      # Custom match rule with host domain
+      matchRule: Host(`traefik.k3s.nf.lab`)
+      entryPoints: ["websecure", "traefik"]
+      # Add custom middlewares : authentication and redirection
+      tls:
+        secretName: traefik-tls
 
   # Stops ArgoCD from thinking that ingresses never complete successfully
   # https://github.com/argoproj/argo-cd/issues/968#issuecomment-451082913
@@ -40,6 +42,7 @@ traefik:
       publishedService:
         enabled: true
     kubernetesCRD:
+      ingressClass: traefik
       enabled: true
       allowCrossNamespace: true
     kubernetesGateway:
@@ -52,19 +55,14 @@ traefik:
 
   ports:
     traefik:
-#      port: 8080
       expose:
         default: true
-    web:
-      redirectTo:
-        port: websecure
-        priority: 10
-#    emby:
-#      port: 8096
-#      expose: 
-#        default: true
-#      exposedPort: 8096
-#      protocol: TCP
+  web:        
+    redirections:
+      entryPoint:
+        to: websecure
+        scheme: https
+        permanent: true
 
   # https://doc.traefik.io/traefik/https/tls/#tls-options
   tlsOptions:
@@ -80,3 +78,43 @@ traefik:
       curvePreferences:
         - CurveP521
         - CurveP384
+
+  metrics:
+    prometheus:
+      service:
+        enabled: true
+      disableAPICheck: false
+      serviceMonitor:
+        enabled: true
+        metricRelabelings:
+          - sourceLabels: [__name__]
+            separator: ;
+            regex: ^fluentd_output_status_buffer_(oldest|newest)_.+
+            replacement: $1
+            action: drop
+        relabelings:
+          - sourceLabels: [__meta_kubernetes_pod_node_name]
+            separator: ;
+            regex: ^(.*)$
+            targetLabel: nodename
+            replacement: $1
+            action: replace
+        jobLabel: traefik
+        interval: 30s
+        honorLabels: true
+      headerLabels:
+        user_id: X-User-Id
+        tenant: X-Tenant
+      prometheusRule:
+        enabled: true
+        rules:
+          - alert: TraefikDown
+            expr: up{job="traefik"} == 0
+            for: 5m
+            labels:
+              context: traefik
+              severity: warning
+            annotations:
+              summary: "Traefik Down"
+              description: "{{ $labels.pod }} on {{ $labels.nodename }} is down"
+        

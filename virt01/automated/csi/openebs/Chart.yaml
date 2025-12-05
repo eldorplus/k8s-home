@@ -1,7 +1,7 @@
-name: openebs
 apiVersion: v2
-version: 1.0.0
+name: openebs
+version: 1.0.3
 dependencies:
 - name: openebs
   repository: https://openebs.github.io/openebs
-  version: 4.1.3
+  version: 4.3.3

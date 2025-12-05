@@ -50,7 +50,23 @@ network:
 # Update the system and install dependencies:
 ```
 sudo apt update && sudo apt upgrade -y
-sudo apt install apt-transport-https curl containerd psmisc -y
+sudo apt install apt-transport-https curl containerd psmisc tlp-stat -y
+```
+
+## Install racadm
+```bash
+wget -U="Mozilla/5.0 (X11; Linux x86_64; rv:10.0) Gecko/20100101 Firefox/10.0" "https://dl.dell.com/FOLDER08952875M/1/Dell-iDRACTools-Web-LX-11.0.0.0-5139_A00.tar.gz?uid=fddb997f-1529-47ea-f794-f5a7a5ef564d&fn=Dell-iDRACTools-Web-LX-11.0.0.0" -O /tmp/idrac.tar.gz
+cd /tmp
+tar xvfz idrac.tar.gz 
+cd /tmp/iDRACTools/racadm/UBUNTU22/x86_64
+
+apt install libargtable2-0
+dpkg -i srvadmin-*.deb
+sudo ln -s /opt/dell/srvadmin/bin/idracadm7 /usr/local/bin/racadm
+cd /tmp
+rm -rf idrac.tar.gz iDRACTools
+
+racadm getsysinfo
 ```
 
 # disable AppArmor
@@ -137,7 +153,7 @@ sudo sysctl --system
 
 # Initialize the cluster (master)
 ```
-sudo kubeadm init --pod-network-cidr=10.244.0.0/16,2001:db8:42:0::/56 --service-cidr=10.96.0.0/16,2001:db8:42:1::/112 
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16,2001:db8:42:0::/56 --service-cidr=10.96.0.0/16,2001:db8:42:1::/112 --allocate-node-cidrs=true
 ```
 
 # set up kubeconfig
@@ -157,11 +173,21 @@ kubectl taint nodes --all node-role.kubernetes.io/control-plane-
 ```
 kubectl label nodes virt01 node.kubernetes.io/exclude-from-external-load-balancers-
 ```
+# OR Install Calico
+```bash
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.30.0/manifests/flannel-migration/calico.yaml
+```
+# Install calicoctl
+```
+curl -L https://github.com/projectcalico/calico/releases/download/v3.30.0/calicoctl-linux-amd64 -o kubectl-calico
+sudo install -m 755 -o root -g root kubectl-calico /usr/local/bin
+```
 
-# Install Flannel network plugin (run only on master node):
+# OR Install Flannel network plugin (run only on master node):
 ```
 kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
 ```
+
 
 # Install helm
 ```
@@ -198,30 +224,6 @@ kubectl get configmap kube-proxy -n kube-system -o yaml | \
 sed -e "s/strictARP: false/strictARP: true/" | \
 kubectl apply -f - -n kube-system
 ```
-
-# GPU
-https://www.jimangel.io/posts/nvidia-rtx-gpu-kubernetes-setup/
-
-
-# 550
-```bash
-wget https://us.download.nvidia.com/tesla/550.127.08/nvidia-driver-local-repo-ubuntu2404-550.127.08_1.0-1_amd64.deb
-apt install ./nvidia-driver-local-repo-ubuntu2404-550.127.08_1.0-1_amd64.deb 
-sudo cp /var/nvidia-driver-local-repo-ubuntu2404-550.127.08/nvidia-driver-local-A0239FBD-keyring.gpg /usr/share/keyrings/
-```
-
-# 570
-
-```bash
-wget https://us.download.nvidia.com/tesla/570.133.20/nvidia-driver-local-repo-ubuntu2404-570.133.20_1.0-1_amd64.deb
-apt install ./nvidia-driver-local-repo-ubuntu2404-570.133.20_1.0-1_amd64.deb
-sudo cp /var/nvidia-driver-local-repo-ubuntu2404-570.133.20/nvidia-driver-local-BB6607B3-keyring.gpg /usr/share/keyrings/
-```
-
-```
-sudo ubuntu-drivers --gpgpu list
-sudo ubuntu-drivers install
-
 
 # Reset certs/change IP
 ```

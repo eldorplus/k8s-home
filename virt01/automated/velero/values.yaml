@@ -1,20 +1,20 @@
 # https://github.com/vmware-tanzu/helm-charts/blob/main/charts/velero/values.yaml
 
 velero:
-  namespace:
-    labels:
-      - key: pod-security.kubernetes.io/enforce
-        value: privileged
-      - key: pod-security.kubernetes.io/enforce-version
-        value: latest
-      - key: pod-security.kubernetes.io/audit
-        value: privileged
-      - key: pod-security.kubernetes.io/audit-version
-        value: latest
-      - key: pod-security.kubernetes.io/warn
-        value: privileged
-      - key: pod-security.kubernetes.io/warn-version
-        value: latest
+  # namespace:
+  #   labels:
+  #   - key: pod-security.kubernetes.io/enforce
+  #     value: privileged
+  #   - key: pod-security.kubernetes.io/enforce-version
+  #     value: latest
+  #   - key: pod-security.kubernetes.io/audit
+  #     value: privileged
+  #   - key: pod-security.kubernetes.io/audit-version
+  #     value: latest
+  #   - key: pod-security.kubernetes.io/warn
+  #     value: privileged
+  #   - key: pod-security.kubernetes.io/warn-version
+  #     value: latest
 
   image:
     repository: harbor.nf.lab/proxy.docker.io/velero/velero
@@ -29,21 +29,14 @@ velero:
 
   initContainers:
   - name: velero-plugin-for-aws
-    image: harbor.nf.lab/proxy.docker.io/velero/velero-plugin-for-aws:v1.12.0
+    image: harbor.nf.lab/proxy.docker.io/velero/velero-plugin-for-aws:v1.13.0
     volumeMounts:
       - mountPath: /target
         name: plugins
-  metrics:
-    serviceMonitor:
-      enabled: true
-    nodeAgentPodMonitor:
-      enabled: true
-    prometheusRule:
-      enabled: true
 
   configuration:
     features: EnableCSI,EnableAPIGroupVersions
-    logLevel: debug
+    logLevel: info
     backupStorageLocation:
     - name: default
       defaultVolumesToFsBackup: false
@@ -75,5 +68,29 @@ velero:
 
   kubectl:
     image:
-      repository: harbor.nf.lab/proxy.docker.io/bitnami/kubectl
+      repository: harbor.nf.lab/proxy.docker.io/bitnamilegacy/kubectl
 
+  metrics:
+    serviceMonitor:
+      enabled: true
+    nodeAgentPodMonitor:
+      enabled: true
+    prometheusRule:
+      enabled: true
+      spec:
+        - alert: VeleroBackupPartialFailures
+          annotations:
+            message: Velero backup {{ $labels.schedule }} has {{ $value | humanizePercentage }} partialy failed backups.
+          expr: |-
+            velero_backup_partial_failure_total{schedule!=""} / velero_backup_attempt_total{schedule!=""} > 0.25
+          for: 15m
+          labels:
+            severity: warning
+        - alert: VeleroBackupFailures
+          annotations:
+            message: Velero backup {{ $labels.schedule }} has {{ $value | humanizePercentage }} failed backups.
+          expr: |-
+            velero_backup_failure_total{schedule!=""} / velero_backup_attempt_total{schedule!=""} > 0.25
+          for: 15m
+          labels:
+            severity: warning

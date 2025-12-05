@@ -1,0 +1,13 @@
+# https://github.com/metallb/metallb/blob/main/charts/metallb/values.yaml
+
+metallb:
+  speaker:
+    # ignore the exclude-from-external-loadbalancer label
+    ignoreExcludeLB: true
+  prometheus:
+    serviceAccount: "kube-prometheus-stack-operator"
+    namespace: "monitoring"  
+    serviceMonitor:
+      enabled: true
+    prometheusRule:
+      enabled: true

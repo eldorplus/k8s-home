@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: torrent
+
+labels:
+  - pairs:
+      app: profilarr
+
+resources:
+  - deployment.yaml
+  - serviceaccount.yaml
+  - service.yaml
+  - ingress.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true

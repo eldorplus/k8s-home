@@ -11,3 +11,4 @@ spec:
       name: jellyseerr-svc-port
   selector:
     app: jellyseerr
+

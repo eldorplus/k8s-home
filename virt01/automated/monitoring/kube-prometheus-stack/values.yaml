@@ -1,10 +1,32 @@
 ---
+# https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-prometheus-stack/values.yaml
 kube-prometheus-stack:
+  crds:
+    enabled: true
+    upgradeJob:
+      enabled: true
+      forceConflicts: true
+
   alertmanager:
+    alertmanagerSpec:
+      externalUrl: https://alertmanager.k3s.nf.lab
+      forceEnableClusterMode: true
+      alertmanagerConfigMatcherStrategy: 
+        type: None
+      persistentVolumeClaimRetentionPolicy:
+        whenDeleted: Retain
+        whenScaled: Retain
+      storage:
+        volumeClaimTemplate:
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 10Gi
     ingress:
       enabled: true
+      ingressClassName: traefik
       annotations: 
-        ingressClassName: traefik
         cert-manager.io/cluster-issuer: nf-lab
         cert-manager.io/private-key-rotation-policy: Always
         traefik.ingress.kubernetes.io/router.entrypoints: websecure
@@ -16,29 +38,14 @@ kube-prometheus-stack:
           hosts:
             - alertmanager.k3s.nf.lab
   grafana:
-    enabled: true
-    adminPassword: prom-operator
-    ingress:
-      enabled: true
-      annotations: 
-        ingressClassName: traefik
-        cert-manager.io/cluster-issuer: nf-lab
-        cert-manager.io/private-key-rotation-policy: Always
-        traefik.ingress.kubernetes.io/router.entrypoints: websecure
-        external-dns.alpha.kubernetes.io/target: traefik.k3s.nf.lab
-      hosts:
-        - grafana-prom.k3s.nf.lab
-      tls:
-        - secretName: grafana-prom-general-tls
-          hosts:
-            - grafana-prom.k3s.nf.lab
+    enabled: false
 
   prometheus:
     enabled: true
     ingress:
       enabled: true
+      ingressClassName: traefik
       annotations: 
-        ingressClassName: traefik
         cert-manager.io/cluster-issuer: nf-lab
         cert-manager.io/private-key-rotation-policy: Always
         traefik.ingress.kubernetes.io/router.entrypoints: websecure
@@ -51,6 +58,20 @@ kube-prometheus-stack:
             - prometheus.k3s.nf.lab
 
     prometheusSpec:
+      externalUrl: https://prometheus.k3s.nf.lab
+      ruleSelector: {}
+      ruleNamespaceSelector: {}
+      ruleSelectorNilUsesHelmValues: false
+      serviceMonitorSelector: {}
+      serviceMonitorNamespaceSelector: {}
+      serviceMonitorSelectorNilUsesHelmValues: false
+      podMonitorSelector: {}
+      podMonitorNamespaceSelector: {}
+      podMonitorSelectorNilUsesHelmValues: false
+      additionalScrapeConfigsSecret:
+        enabled: true
+        name: additional-scrape-configs
+        key: prometheus-additional.yaml
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
         whenScaled: Retain
@@ -61,3 +82,22 @@ kube-prometheus-stack:
             resources:
               requests:
                 storage: 50Gi
+
+  defaultRules:
+    rules:
+      etcd: false
+      kubeProxy: false
+      kubeSchedulerAlerting: false
+      kubeSchedulerRecording: false
+      kubeControllerManager: false
+      
+
+## Component scraping
+#  kubeProxy:
+#    enabled: false
+
+#  kubeEtcd:
+#    enabled: false
+     
+#  kubeScheduler:
+#    enabled: false

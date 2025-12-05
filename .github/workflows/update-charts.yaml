@@ -1,0 +1,47 @@
+name: Update Helm Chart Version
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 1 * *' # Runs weekly at 03:00 UTC
+
+jobs:
+  update-chart:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Updatecli in the runner
+        uses: updatecli/updatecli-action@v2
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r updatecli/requirements.txt
+
+      - name: Run updatecli/chart_bumper.py
+        run: |
+          python3 /home/runner/work/k8s-home/k8s-home/updatecli/chart_bumper.py --apply --charts-root /home/runner/work/k8s-home/k8s-home/virt01
+          
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          id: cpr
+          token: ${{ secrets.PAT || secrets.GITHUB_TOKEN  }}
+          commit-message: "chore: bump chart version(s) via chart_bumper.py"
+          title: "chore: bump chart version(s)"
+          body: "Automated chart version bump using chart_bumper.py"
+          branch: "chart-bump/updatecli"
+          delete-branch: true
+          base: main
+
+      - name: Create PR output
+        run: |
+          echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"

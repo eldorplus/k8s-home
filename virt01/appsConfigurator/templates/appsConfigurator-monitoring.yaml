@@ -27,7 +27,14 @@ spec:
       syncPolicy:
         syncOptions:
         - CreateNamespace=true
+        - ServerSideApply=true
+        - Validate=false
+        - RespectIgnoreDifferences=true
         automated:
           prune: true
           selfHeal: true
-
+      ignoreDifferences:
+      - group: monitoring.coreos.com
+        kind: ServiceMonitor
+        jqPathExpressions:
+        - .metadata.annotations

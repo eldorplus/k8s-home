@@ -1,18 +1,26 @@
 # k8s-home
 
-# set up harvester hci
+## Prep workstation
 
-# set up talos single node cluster
-# pxe setup
-# boot
-# config node
-
-
-
-# bootstrap argocd...
-
-# kubeseal
+```bash
+git clone git@github.com:nforceroh/k8s-home.git
 ```
+
+## Install ansible and tools to WSL instance
+
+```bash
+sudo apt update
+# Install Ansible
+sudo apt install ansible kubectl -y
+# Install Helm
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | sudo bash
+```
+
+## bootstrap argocd...
+
+## kubeseal
+
+```bash
 # https://github.com/bitnami-labs/sealed-secrets/blob/main/docs/bring-your-own-certificates.md
 # generate own cert
 export PRIVATEKEY="mytls.key"
@@ -33,14 +41,20 @@ kubectl -n "$NAMESPACE" logs -l app.kubernetes.io/name=sealed-secrets
 
 wget https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.27.1/kubeseal-0.27.1-linux-amd64.tar.gzta
 sudo install -m 755 kubeseal /usr/local/bin/kubeseal
-```
+
 kubeseal  --controller-name sealed-secrets --controller-namespace common
 
 kubectl create -f cert-manager.yaml -o yaml --dry-run=client|kubeseal --controller-name sealed-secrets --controller-namespace common > cert-manager-sealed.yaml
+```
 
-Fix UNBOUND PV
+## Fix UNBOUND PV
 
+```bash
 for p in `oc get pv|grep pvc|awk '{print $1}'`; do oc patch pv $p -p '{"spec":{"claimRef":{"uid":null}}}';done
-Fix Lost PVC
+```
 
+## Fix Lost PVC
+
+```bash
 oc get pvc -A|grep -v NAMES|grep Lost|awk '{print "oc annotate pvc "$2" -n "$1" pv.kubernetes.io/bind-completed-"}'
+```
