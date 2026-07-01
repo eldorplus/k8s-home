@@ -3,9 +3,9 @@ sources:
   lastMinorRelease:
     kind: helmchart
     spec:
-      url: "oci://registry-1.docker.io/bitnamicharts"
+      url: "https://repo.helmforge.dev"
       name: "phpmyadmin"
-      version: "20.*.*"
+      version: "2.*.*"
 conditions: {}
 targets:
   chart:

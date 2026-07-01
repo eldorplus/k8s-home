@@ -17,11 +17,39 @@ spec:
         app: rspamd
     spec:
       serviceAccountName: rspamd-sa
+      initContainers:
+        - name: disable-ipv6
+          image: busybox:latest
+          command: ["sh", "-c", "sysctl -w net.ipv6.conf.all.disable_ipv6=1 && sysctl -w net.ipv6.conf.default.disable_ipv6=1"]
+          securityContext:
+            privileged: true
       containers:
         - name: rspamd
-#          image: harbor.nf.lab/homelab/rspamd:latest
           image: ghcr.io/nforceroh/k8s-rspamd:latest
           imagePullPolicy: Always
+          env:
+            - name: ADMIN_PASS
+              value: '$2$s3dymobyg84ktaksyhkf8der7juzcnza$omo3btjw5kkawjpsnwx4teh7xfny7136aw9xk1a5w6r3ay4714rb'
+            - name: RSPAMD_DNS_SERVERS
+              value: "127.0.0.1"
+            - name: DEBUG_MODULES
+              value: "gpt"
+            - name: CLAMAV_HOST
+              value: "clamav.mail.svc.cluster.local"
+            - name: CLAMAV_PORT
+              value: "3310"
+            - name: DCC_HOST
+              value: "dcc-svc"
+            - name: DCC_PORT
+              value: "10045"
+            - name: REDIS_HOST
+              value: "redis-master.databases.svc.cluster.local"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_DB
+              value: "7"
+            - name: LOG_LEVEL
+              value: "info" # error,warning,info,debug
           envFrom:
           - configMapRef:
               name: rspamd-env
@@ -35,27 +63,38 @@ spec:
             - containerPort: 11334
               name: web-port
               protocol: TCP
+            - containerPort: 11335
+              name: fuzzy-port
+              protocol: TCP
           resources:
-            limits:
-              cpu: "1"
-              memory: "2Gi"
             requests:
               cpu: "10m"
-              memory: "128Mi"
+              memory: "1Gi"
           volumeMounts:
             - name: rspamd-pv
               mountPath: /var/lib/rspamd
-            - name: rspamd-local-pv
-              mountPath: /etc/rspamd/local.d
+            - name: dshm
+              mountPath: /dev/shm
+        - name: unbound
+          image: mvance/unbound:latest
+          ports:
+            - containerPort: 53
+              name: dns-udp
+              protocol: UDP
+          resources:
+            limits:
+              memory: 1Gi
+              cpu: 200m
+          securityContext:
+            capabilities:
+              add: ["NET_BIND_SERVICE"]
       dnsPolicy: "ClusterFirst"
-      dnsConfig:
-        nameservers:
-          - 1.1.1.1
-          - 8.8.8.8
       volumes:
         - name: rspamd-pv
           persistentVolumeClaim:
             claimName: rspamd-pvc
-        - name: rspamd-local-pv
-          persistentVolumeClaim:
-            claimName: rspamd-local-pvc
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: "128Mi" # Increase this based on your map sizes
+

@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+labels:
+  - pairs:
+      app: mariadb-test
+
+namespace: databases
+
+resources:
+  - mariadb-auth-sealed.yaml
+  - database.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+

@@ -1,0 +1,36 @@
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: MariaDB
+metadata:
+  name: mariadb
+  namespace: databases
+spec:
+  rootPasswordSecretKeyRef:
+    name: mariadb-auth
+    key: mariadb-password
+  
+  storage:
+    size: 10Gi
+    storageClassName: openebs-zfspv-lz4
+
+  replicas: 1
+  metrics:
+    enabled: true
+
+  myCnf: |
+    [mariadb]
+    bind-address=*
+    default_storage_engine=InnoDB
+    binlog_format=row
+    innodb_autoinc_lock_mode=2
+    innodb_buffer_pool_size=800M
+    max_allowed_packet=256M
+    [client]
+    port=3306
+
+  service:
+    type: LoadBalancer
+    metadata:
+      annotations:
+        metallb.io/address-pool: vlan1000-apps
+        metallb.io/loadBalancerIPs: 10.0.1.112
+        external-dns.alpha.kubernetes.io/hostname: mariadb.k3s.nf.lab        

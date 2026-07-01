@@ -38,7 +38,52 @@ kube-prometheus-stack:
           hosts:
             - alertmanager.k3s.nf.lab
   grafana:
-    enabled: false
+    enabled: true
+    admin:
+      existingSecret: grafana-admin-credentials
+      userKey: admin-user
+      passwordKey: admin-password
+    envFromSecrets:
+      - name: grafana-influxdb-ups-token
+    datasources:
+      datasources.yaml:
+        apiVersion: 1
+        datasources:
+          - name: influxdb:upsdata
+            uid: dfqjx64h8joqoa
+            type: influxdb
+            access: proxy
+            url: http://influxdb-svc.databases.svc.cluster.local:8086
+            editable: true
+            isDefault: false
+            jsonData:
+              version: Flux
+              organization: nf
+              defaultBucket: upsdata/autogen
+            secureJsonData:
+              token: ${INFLUXDB_UPSDATA_TOKEN}
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      annotations:
+        cert-manager.io/cluster-issuer: nf-lab
+        cert-manager.io/private-key-rotation-policy: Always
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+        external-dns.alpha.kubernetes.io/target: traefik.k3s.nf.lab
+      hosts:
+        - grafana-kps.k3s.nf.lab
+      tls:
+        - secretName: grafana-kps-general-tls
+          hosts:
+            - grafana-kps.k3s.nf.lab
+    sidecar:
+      dashboards:
+        enabled: true
+        folderAnnotation: grafana_folder
+        provider:
+          foldersFromFilesStructure: true
+      datasources:
+        enabled: true
 
   prometheus:
     enabled: true

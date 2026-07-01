@@ -1,20 +1,21 @@
-
+#https://github.com/blakeblackshear/blakeshome-charts/blob/master/charts/frigate/values.yaml
 frigate:
   image:
-    # -- Docker registry/repository to pull the image from
     repository: ghcr.io/blakeblackshear/frigate
     tag: stable-tensorrt
+    # tag: 0.16.4-tensorrt
 
+  shmSize: 2Gi
   tmpfs:
     enabled: true
     sizeLimit: 1Gi
+
   env:
     TZ: America/New_York
   envFromSecrets:
     - frigate-config
   gpu:
     nvidia:
-      # -- Enables NVIDIA GPU compatibility. Must also use the "amd64nvidia" tagged image
       enabled: true
       runtimeClassName: nvidia
 
@@ -25,6 +26,9 @@ frigate:
         secretName: frigate-ext-tls
         # Optionally, you can ensure the correct permissions
         defaultMode: 420 # rw-r--r-- permissions (octal 0644)
+    # - name: model-cache
+    #   persistentVolumeClaim:
+    #     claimName: frigate-cache
 
   # -- declare additional volume mounts
   extraVolumeMounts:
@@ -33,12 +37,15 @@ frigate:
       mountPath: /etc/letsencrypt/live/frigate/fullchain.pem
       subPath: tls.crt # Maps the 'tls.crt' key from the secret to this file path
       readOnly: true
-    
     # Mount the private key file
     - name: frigate-ext-tls-volume
       mountPath: /etc/letsencrypt/live/frigate/privkey.pem
       subPath: tls.key # Maps the 'tls.key' key from the secret to this file path
       readOnly: true
+    # # Mount the model cache volume
+    # - name: model-cache
+    #   mountPath: /tmp/cache
+    #   readOnly: false
 
   ingress:
     # -- Enables the use of an Ingress Controller to front the Service and can provide HTTPS
@@ -68,85 +75,41 @@ frigate:
   persistence:
     config:
       enabled: true        
-      skipuninstall: false
+      skipuninstall: true
       size: 10Gi
+      existingClaim: frigate-config
     media:
       enabled: true        
-      skipuninstall: false    
+      skipuninstall: true    
       existingClaim: frigate-media
+
   config: |
     mqtt:
-      # Required: host name
       host: mqtt.k3s.nf.lab
-      # Optional: port (default: shown below)
       port: 1883
-      # Optional: topic prefix (default: shown below)
-      # WARNING: must be unique if you are running multiple instances
       topic_prefix: frigate
-      # Optional: client id (default: shown below)
-      # WARNING: must be unique if you are running multiple instances
       client_id: frigate
-      # Optional: user
       #user: mqtt_user
-      # Optional: password
-      # NOTE: Environment variables that begin with 'FRIGATE_' may be referenced in {}.
-      #       eg. password: '{FRIGATE_MQTT_PASSWORD}'
       #password: password
-      # Optional: interval in seconds for publishing stats (default: shown below)
       stats_interval: 60
+
+    # auth:
+      # Optional: Enable authentication
+      # enabled: True
+      # Optional: Reset the admin user password on startup (default: shown below)
+      # New password is printed in the logs
+      # reset_admin_password: true
 
     tls:
       # Optional: Enable TLS for port 8971 (default: shown below)
       enabled: false
 
-    go2rtc:
-      streams:
-        #Wyze
-        LivingRoom_main:
-          - rtsp://10.40.1.42:8554/1080p?mp4
-          - ffmpeg:LivingRoom#audio=opus
-        LivingRoom_sub:
-          - rtsp://10.40.1.42:8554/360p?mp4
-          - ffmpeg:LivingRoom#audio=opus
-        BunCam_main:
-          - rtsp://10.40.1.19:8554/1080p?mp4
-          - ffmpeg:BunCam#audio=opus
-        BunCam_sub:
-          - rtsp://10.40.1.19:8554/360p?mp4
-          - ffmpeg:BunCam#audio=opus
-
-        # Passed thru scrypted
-        Kitchen_main:
-          - rtsp://scrypted-rtsp-svc:33759/75e57ba83105f666
-          - ffmpeg:Kitchen#audio=opus
-        Kitchen_sub:
-          - rtsp://scrypted-rtsp-svc:33759/31e5716887d9312a
-          - ffmpeg:Kitchen#audio=opus
-        SittingRoom_main:
-          - rtsp://scrypted-rtsp-svc:40123/0646b22eadf4d50a
-          - ffmpeg:SittingRoom#audio=opus
-        SittingRoom_sub:
-          - rtsp://scrypted-rtsp-svc:40123/91389e5f43812d1a
-          - ffmpeg:SittingRoom#audio=opus
-        # reolink
-        rlc_520a_main_garage:
-          - rtsp://{FRIGATE_RTSP_USERNAME}:{FRIGATE_RTSP_PASSWORD}@10.40.1.149:554/h265Preview_01_main
-        rlc_520a_sub_garage:
-          - rtsp://{FRIGATE_RTSP_USERNAME}:{FRIGATE_RTSP_PASSWORD}@10.40.1.149:554/h265Preview_01_sub
-        rlc_520a_main_front_porch:
-          - rtsp://{FRIGATE_RTSP_USERNAME}:{FRIGATE_RTSP_PASSWORD}@10.40.1.148:554/h265Preview_01_main
-        rlc_520a_sub_front_porch:
-          - rtsp://{FRIGATE_RTSP_USERNAME}:{FRIGATE_RTSP_PASSWORD}@10.40.1.148:554/h265Preview_01_sub
-        rlc_520a_main_back_door:
-          - rtsp://{FRIGATE_RTSP_USERNAME}:{FRIGATE_RTSP_PASSWORD}@10.40.1.151:554/h265Preview_01_main
-        rlc_520a_sub_back_door:
-          - rtsp://{FRIGATE_RTSP_USERNAME}:{FRIGATE_RTSP_PASSWORD}@10.40.1.151:554/h265Preview_01_sub
-      webrtc:
-        candidates:
-          - stun:8555
-
     snapshots:
       enabled: true
+
+    logger:
+      logs:
+        frigate.record.maintainer: debug
 
     live:
       # Optional: Set the streams configured in go2rtc
@@ -195,12 +158,12 @@ frigate:
             person: 100
 
     ffmpeg:
+      # path: '5.0'
       global_args: -hide_banner -loglevel warning -threads 2
       hwaccel_args: preset-nvidia
       input_args: preset-rtsp-generic
       output_args:
-        detect: -threads 2 -f rawvideo -pix_fmt yuv420p
-        record: -c:v h264_nvenc -preset p2 -tune hq -pix_fmt yuv420p -f segment -segment_time 10 -segment_format mp4 -reset_timestamps 1 -strftime 1 -an
+        record: preset-record-generic-audio-copy
       retry_interval: 10
 
     detectors:
@@ -244,9 +207,6 @@ frigate:
 
     record:
       enabled: true
-      retain:
-        days: 14
-        mode: all
       alerts:
         retain:
           days: 30
@@ -257,7 +217,10 @@ frigate:
         retain:
           days: 30
           mode: motion
-
+      continuous:
+        days: 14
+      motion:
+        days: 14
 
     # # NOTE: Can be overridden at the camera level
     # audio:
@@ -328,7 +291,96 @@ frigate:
     #   object_prompts:
     #     person: "My special person prompt."
 
+
+    go2rtc:
+      webrtc:
+        listen: ":8555/tcp" # Forces TCP only; drops random UDP handshakes
+        candidates:
+          - frigate.k3s.nf.lab:443
+          - frigate.nforcer.com:443
+
+      streams:
+        # Thingino
+        #test_cam:
+        #  - rtsp://thingino:thingino@10.40.1.166/ch0
+        #test_cam_sub:
+        #  - rtsp://thingino:thingino@10.40.1.166/ch1
+
+        #Wyze
+        LivingRoom_main:
+          # Video: h264 (Main), yuv420p(tv, bt709, progressive), 1920x1080, 20 fps, 40 tbr, 90k tbn Audio: aac (HE-AAC), 16000 Hz, stereo, fltp
+          - rtsp://10.40.1.42:8554/1080p?mp4
+          - ffmpeg:LivingRoom_main#audio=opus
+        LivingRoom_sub:
+          # Video: h264 (Main), yuv420p(tv, bt709, progressive), 640x360, 20 fps, 15 tbr, 90k tbn Audio: aac (HE-AAC), 16000 Hz, stereo, fltp
+          - rtsp://10.40.1.42:8554/360p?mp4
+          - ffmpeg:LivingRoom_sub#audio=opus
+        BunCam_main:
+          # Video: h264 (Main), yuv420p(tv, bt709, progressive), 1920x1080, 20 fps, 15 tbr, 90k tbn Audio: aac (HE-AAC), 16000 Hz, stereo, fltp
+          - rtsp://10.40.1.19:8554/1080p?mp4
+          - ffmpeg:BunCam_main#audio=opus
+        BunCam_sub:
+          # Video: h264 (Main), yuv420p(tv, bt709, progressive), 640x360, 20 fps, 15 tbr, 90k tbn Audio: aac (HE-AAC), 16000 Hz, stereo, fltp
+          - rtsp://10.40.1.19:8554/360p?mp4
+          - ffmpeg:BunCam_sub#audio=opus
+
+        # Passed thru scrypted
+        Kitchen_main:
+          - rtsp://scrypted-rtsp-svc:33759/75e57ba83105f666
+          - ffmpeg:Kitchen_main#audio=opus
+        Kitchen_sub:
+          - rtsp://scrypted-rtsp-svc:33759/31e5716887d9312a
+          - ffmpeg:Kitchen_sub#audio=opus
+        SittingRoom_main:
+          - rtsp://scrypted-rtsp-svc:40123/0646b22eadf4d50a
+          - ffmpeg:SittingRoom_main#audio=opus
+        SittingRoom_sub:
+          - rtsp://scrypted-rtsp-svc:40123/91389e5f43812d1a
+          - ffmpeg:SittingRoom_sub#audio=opus
+
+        # reolink
+        reo_dual_main_garage:
+          # Video: h264 (High), yuv420p(progressive), 4096x1248, 20 fps, 40 tbr, 90k tbn Audio: aac (LC), 16000 Hz, mono, fltp
+          - rtsp://{FRIGATE_RTSP_USERNAME}:{FRIGATE_RTSP_PASSWORD}@10.40.1.162/h265Preview_01_main
+        reo_dual_main_garage_browser:
+          - ffmpeg:reo_dual_main_garage#video=h264#hardware=cuda#audio=opus
+        reo_dual_sub_garage:
+          # Video: h264 (High), yuv420p(progressive), 1920x576, 7 fps, 14 tbr, 90k tbn Audio: aac (LC), 16000 Hz, mono, fltp
+          # - rtsp://{FRIGATE_RTSP_USERNAME}:{FRIGATE_RTSP_PASSWORD}@10.40.1.162:554/Preview_01_sub
+          - rtsp://{FRIGATE_RTSP_USERNAME}:{FRIGATE_RTSP_PASSWORD}@10.40.1.162/h264Preview_01_sub
+        rlc_520a_main_front_porch:
+          # Video: Video: hevc (Main), yuv420p(tv), 2560x1920, 20 fps, 20 tbr, 90k tbn Audio: aac (LC), 16000 Hz, mono, fltp
+          - rtsp://{FRIGATE_RTSP_USERNAME}:{FRIGATE_RTSP_PASSWORD}@10.40.1.148/h265Preview_01_main
+        rlc_520a_main_front_porch_browser:
+          - ffmpeg:rlc_520a_main_front_porch#video=h264#hardware=cuda#audio=opus
+        rlc_520a_sub_front_porch:
+          # Video: h264 (High), yuv420p(progressive), 640x480, 7 fps, 14 tbr, 90k tbn Audio: aac (LC), 16000 Hz, mono, fltp
+          - rtsp://{FRIGATE_RTSP_USERNAME}:{FRIGATE_RTSP_PASSWORD}@10.40.1.148/h264Preview_01_sub
+        rlc_520a_main_back_door:
+          # Video: hevc (Main), yuv420p(tv), 2560x1920, 20 fps, 20 tbr, 90k tbn Audio: aac (LC), 16000 Hz, mono, fltp
+          - rtsp://{FRIGATE_RTSP_USERNAME}:{FRIGATE_RTSP_PASSWORD}@10.40.1.151/h265Preview_01_main
+        rlc_520a_main_back_door_browser:
+          - ffmpeg:rlc_520a_main_back_door#video=h264#hardware=cuda#audio=opus
+        rlc_520a_sub_back_door:
+          # Video: h264 (High), yuv420p(progressive), 640x480, 7 fps, 14 tbr, 90k tbn Audio: aac (LC), 16000 Hz, mono, fltp
+          - rtsp://{FRIGATE_RTSP_USERNAME}:{FRIGATE_RTSP_PASSWORD}@10.40.1.151/h264Preview_01_sub
+
     cameras:
+      # test_cam:
+      #   enabled: false
+      #   ffmpeg:
+      #     output_args:
+      #       record: preset-record-generic-audio-aac
+      #     inputs:
+      #       - path: rtsp://127.0.0.1:8554/test_cam?timeout=30
+      #         input_args: preset-rtsp-restream-low-latency
+      #         roles:
+      #           - record
+      #       - path: rtsp://127.0.0.1:8554/test_cam_sub?timeout=30
+      #         input_args: preset-rtsp-restream-low-latency
+      #         roles:
+      #           - detect
+      #           - audio
       LivingRoom:
         enabled: true
         detect:
@@ -339,7 +391,6 @@ frigate:
             - path: rtsp://127.0.0.1:8554/LivingRoom_main
               input_args: preset-rtsp-restream
               roles:
-                - audio
                 - record
             - path: rtsp://127.0.0.1:8554/LivingRoom_sub
               input_args: preset-rtsp-restream
@@ -367,7 +418,6 @@ frigate:
             - path: rtsp://127.0.0.1:8554/BunCam_main
               input_args: preset-rtsp-restream
               roles:
-                - audio
                 - record
             - path: rtsp://127.0.0.1:8554/BunCam_sub
               input_args: preset-rtsp-restream
@@ -380,11 +430,12 @@ frigate:
         detect:
           enabled: false
         ffmpeg:
+          output_args:
+            record: preset-record-generic-audio-aac
           inputs:
             - path: rtsp://127.0.0.1:8554/Kitchen_main
               input_args: preset-rtsp-restream
               roles:
-                - audio
                 - record
             - path: rtsp://127.0.0.1:8554/Kitchen_sub
               input_args: preset-rtsp-restream
@@ -397,11 +448,12 @@ frigate:
         detect:
           enabled: false
         ffmpeg:
+          output_args:
+            record: preset-record-generic-audio-aac
           inputs:
             - path: rtsp://127.0.0.1:8554/SittingRoom_main
               input_args: preset-rtsp-restream
               roles:
-                - audio
                 - record
             - path: rtsp://127.0.0.1:8554/SittingRoom_sub
               input_args: preset-rtsp-restream
@@ -413,29 +465,24 @@ frigate:
         enabled: true
         live:
           streams:
-            sub_stream: rlc_520a_sub_garage
-            main_stream: rlc_520a_main_garage
-        webui_url: http://10.40.1.149
+            main: reo_dual_main_garage_browser
+            sub: reo_dual_sub_garage
+        webui_url: http://10.40.1.162
         ffmpeg:
           inputs:
-            - path: rtsp://127.0.0.1:8554/rlc_520a_main_garage
-              input_args: preset-rtsp-restream
-              roles:
-                - audio
-                - record
-            - path: rtsp://127.0.0.1:8554/rlc_520a_sub_garage
-              input_args: preset-rtsp-restream
+            - path: rtsp://127.0.0.1:8554/reo_dual_sub_garage
               roles:
                 - detect
+            - path: rtsp://127.0.0.1:8554/reo_dual_main_garage
+              roles:
+                - record
         motion:
           threshold: 50
           contour_area: 50
           improve_contrast: true
           mask:
-            - 0.211,0.357,0.284,0.312,0.43,0.297,0.617,0.304,0.69,0.323,1,0.388,1,0,0,0,0,0.388
-            - 0.496,0.421,0.53,0.387,0.55,0.314,0.548,0.221,0.499,0.128,0.436,0.216,0.432,0.321,0.477,0.35
-            - 0.099,0.478,0,0.487,0,0.386,0.047,0.383
-            - 0.983,0.985,0.982,0.946,0.64,0.945,0.64,0.984
+            - 0.127,0.438,0.274,0.28,0.439,0.193,0.618,0.218,0.746,0.271,0.863,0.56,0.89,0.229,0.959,0.176,0.969,0,0.169,0,0.106,0.311
+            - 0.993,0.983,0.992,0.93,0.788,0.922,0.788,0.979
         review:
           alerts:
             labels: []
@@ -444,56 +491,66 @@ frigate:
               - Walkway_zone
               - Driveway_zone
               - Front_Yard_zone
-        detect:
-          enabled: true
-          fps: 7
-          width: 640
-          height: 480
-          stationary:
-            interval: 50
-            threshold: 50
+        #detect:
+        #  width: 1920 # Match the Duo sub-stream exactly
+        #  height: 576
+        #  fps: 7 # Match the camera's sub-stream FPS
+        # detect:
+        #   enabled: true
+        #   fps: 7
+        #   width: 1920
+        #   height: 576
+        #   stationary:
+        #     interval: 50
+        #     threshold: 50
         objects:
           track:
             - person
             - car
+            - cat
             - dog
-
+          mask: 0.863,0.562,0.745,0.275,0.747,0,0.91,0
+        record:
+          enabled: true
         zones:
           Front_Yard_zone:
             coordinates: 
-              0.234,0.745,0.95,0.429,0.725,0.391,0.48,0.38,0.299,0.384,0.18,0.387,0.054,0.421
+              0.253,0.738,0.531,0.201,0.405,0.208,0.274,0.29,0.125,0.445,0.136,0.536,0.189,0.489
             loitering_time: 0
             objects:
               - person
               - dog
             inertia: 3
           Driveway_zone:
-            coordinates: 0.042,0.829,0.087,0.997,1,1,1,0.811,1,0.447,0.958,0.436
+            coordinates: 0.173,0.868,0.192,1,0.545,1,0.617,0.21,0.532,0.185
             loitering_time: 0
             objects:
               - car
               - person
             inertia: 3
           Walkway_zone:
-            coordinates: 
-              0.225,0.745,0.135,0.575,0.003,0.599,0.012,0.666,0.078,0.648,0.132,0.787
+            coordinates: 0.252,0.738,0.195,0.541,0.14,0.595,0.175,0.857
             loitering_time: 0
             objects:
               - dog
               - person
+            inertia: 3
+          FrontSideYard:
+            coordinates: 0.549,0.993,0.619,0.226,0.699,0.251,0.921,1
+            loitering_time: 0
+            inertia: 3
       FrontPorch:
         enabled: true
         live:
           streams:
-            sub_stream: rlc_520a_sub_front_porch
-            main_stream: rlc_520a_main_front_porch
+            main: rlc_520a_main_front_porch_browser
+            sub: rlc_520a_sub_front_porch
         webui_url: http://10.40.1.148
         ffmpeg:
           inputs:
             - path: rtsp://127.0.0.1:8554/rlc_520a_main_front_porch
               input_args: preset-rtsp-restream
               roles:
-                - audio
                 - record
             - path: rtsp://127.0.0.1:8554/rlc_520a_sub_front_porch
               input_args: preset-rtsp-restream
@@ -515,22 +572,18 @@ frigate:
               - Driveway_zone
               - Front_Yard_zone
               - Front_Side_Yard_zone
-        detect:
-          enabled: true
-          fps: 7
-          width: 640
-          height: 480
-          stationary:
-            interval: 50
-            threshold: 50
         objects:
           track:
             - person
             - car
+            - cat
             - dog
-
           filters:
-            car: {}
+            car:
+              mask:
+                - 0.76,0.277,0.19,0.175,0.192,0.142,0.263,0.12,0.266,0.008,0.783,0.002
+        record:
+          enabled: true
         zones:
           Porch_zone:
             coordinates: 
@@ -570,21 +623,19 @@ frigate:
         enabled: true
         live:
           streams:
-            sub_stream: rlc_520a_sub_back_door
-            main_stream: rlc_520a_main_back_door
+            main: rlc_520a_main_back_door_browser
+            sub: rlc_520a_sub_back_door
         webui_url: http://10.40.1.151
         ffmpeg:
           inputs:
             - path: rtsp://127.0.0.1:8554/rlc_520a_main_back_door
               input_args: preset-rtsp-restream
               roles:
-                - audio
                 - record
             - path: rtsp://127.0.0.1:8554/rlc_520a_sub_back_door
               input_args: preset-rtsp-restream
               roles:
                 - detect
-        # motion:
         #   mask: 
         review:
           alerts:
@@ -600,11 +651,14 @@ frigate:
           stationary:
             interval: 50
             threshold: 50
+        record:
+          enabled: true
         objects:
           track:
             - person
+            - car
+            - cat
             - dog
-
           mask:
             - 0.986,0.985,0.984,0.948,0.646,0.946,0.646,0.988
             - 0.008,0.947,0.009,0.984,0.123,0.984,0.124,0.946
@@ -624,22 +678,14 @@ frigate:
           improve_contrast: true
 
     telemetry:
-      # Optional: Enabled network interfaces for bandwidth stats monitoring (default: empty list, let nethogs search all)
       network_interfaces:
-        - eth
-        - enp
-        - eno
-        - ens
-        - wl
+        - eth0
         - lo
-      # Optional: Configure system stats
       stats:
         network_bandwidth: true
-      # Optional: Enable the latest version outbound check (default: shown below)
-      # NOTE: If you use the Home Assistant integration, disabling this will prevent it from reporting new versions
       version_check: true
 
-    version: 0.16-0
+    version: 0.17-0
     semantic_search:
       enabled: true
       model_size: small
@@ -668,4 +714,3 @@ frigate:
           - BunCam
           - Kitchen
           - SittingRoom
-

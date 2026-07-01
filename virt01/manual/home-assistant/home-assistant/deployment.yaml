@@ -8,6 +8,8 @@ metadata:
 
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: ha
@@ -51,6 +53,43 @@ spec:
             tcpSocket:
               port: 8123
             timeoutSeconds: 1
+          resources: {}
+        
+        - name: zwave-js-ui
+          image: zwavejs/zwave-js-ui:latest
+          imagePullPolicy: Always
+          env:
+            - name: TZ
+              value: "America/New_York"
+            - name: TRUST_PROXY
+              value: "true"
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              httpHeaders:
+              - name: Accept
+                value: text/plain
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          ports:
+          - containerPort: 8091
+            name: js-ui-http
+            protocol: TCP
+          - containerPort: 3000
+            name: js-ui-websocket
+            protocol: TCP
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: true
+            privileged: true
+          volumeMounts:
+          - mountPath: /usr/src/app/store
+            name: zwave-data
+
 
         - name: music-assistant-server
           image: ghcr.io/music-assistant/server:latest
@@ -70,6 +109,7 @@ spec:
             mountPath: /media
           securityContext:
             privileged: true
+          resources: {}
 
         - name: code-server
           image: linuxserver/code-server
@@ -92,8 +132,11 @@ spec:
             mountPath: /data
           - name: ha-config-pv
             mountPath: /ha/config
+          - name: esphome-config-pv
+            mountPath: /esphome-config
           securityContext:
             privileged: true
+          resources: {}
 
         - name: esphome
           image: esphome/esphome
@@ -117,6 +160,8 @@ spec:
             name: esphome-config-pv
           - mountPath: /cache
             name: esphome-cache-pv
+          resources: {}
+          
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       volumes:
@@ -142,3 +187,6 @@ spec:
           hostPath:
             path: /mnt/ssd01/Music
             type: Directory
+        - name: zwave-data
+          hostPath:
+            path: /zwave/data
