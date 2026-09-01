@@ -36,10 +36,12 @@ velero:
 
   configuration:
     features: EnableCSI,EnableAPIGroupVersions
+    dataMoverPrepareTimeout: 3h
+    defaultItemOperationTimeout: 6h
     logLevel: info
+    defaultVolumesToFsBackup: false
     backupStorageLocation:
     - name: default
-      defaultVolumesToFsBackup: false
       provider: aws
       bucket: velero
       config:
@@ -66,9 +68,14 @@ velero:
   
   deployNodeAgent: true
 
+  nodeAgent:
+    podVolumePath: /var/lib/kubelet/pods
+    
   kubectl:
     image:
       repository: harbor.nf.lab/proxy.docker.io/bitnamilegacy/kubectl
+#      digest: sha256-ed0b31a0508da84ee655c5c6e01bd3897fc56ad6cf69debb27fa1893a06d2246
+      tag: 1.33.4
 
   metrics:
     serviceMonitor:

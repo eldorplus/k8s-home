@@ -8,7 +8,24 @@ kube-prometheus-stack:
       forceConflicts: true
 
   alertmanager:
+    # config:
+    #   receivers:
+    #     - name: 'null' # Define an empty receiver
+    #   route:
+    #     routes:
+    #       # Match specific alerts or namespaces to throw away
+    #       - matchers: 
+    #           - alertname =~ "CPUThrottlingHigh|KubePodNotReady"
+    #           - namespace = "development"
+    #         receiver: 'null'  
     alertmanagerSpec:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi  
       externalUrl: https://alertmanager.k3s.nf.lab
       forceEnableClusterMode: true
       alertmanagerConfigMatcherStrategy: 
@@ -18,11 +35,18 @@ kube-prometheus-stack:
         whenScaled: Retain
       storage:
         volumeClaimTemplate:
+          metadata:
+            annotations:
+              # Tells Helm/ArgoCD to leave this PVC alone during a chart uninstall
+              helm.sh/resource-policy: keep
+              # Explicitly orders Argo CD to skip this PVC during pruning operations
+              argocd.argoproj.io/sync-options: Prune=false      
           spec:
             accessModes: ["ReadWriteOnce"]
             resources:
               requests:
                 storage: 10Gi
+
     ingress:
       enabled: true
       ingressClassName: traefik
@@ -38,7 +62,54 @@ kube-prometheus-stack:
           hosts:
             - alertmanager.k3s.nf.lab
   grafana:
-    enabled: false
+    enabled: true
+    admin:
+      existingSecret: grafana-admin-credentials
+      userKey: admin-user
+      passwordKey: admin-password
+    envFromSecrets:
+      - name: grafana-influxdb-ups-token
+    datasources:
+      datasources.yaml:
+        apiVersion: 1
+        datasources:
+          - name: influxdb:upsdata
+            uid: dfqjx64h8joqoa
+            type: influxdb
+            access: proxy
+            url: http://influxdb-svc.databases.svc.cluster.local:8086
+            editable: true
+            isDefault: false
+            jsonData:
+              version: Flux
+              organization: nf
+              defaultBucket: upsdata/autogen
+            secureJsonData:
+              token: ${INFLUXDB_UPSDATA_TOKEN}
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      annotations:
+        cert-manager.io/cluster-issuer: nf-lab
+        cert-manager.io/private-key-rotation-policy: Always
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+        external-dns.alpha.kubernetes.io/target: traefik.k3s.nf.lab
+      hosts:
+        - grafana.k3s.nf.lab
+      tls:
+        - secretName: grafana-general-tls
+          hosts:
+            - grafana.k3s.nf.lab
+    sidecar:
+      dashboards:
+        enabled: true
+        annotations:
+          grafana_folder: Kubernetes
+        folderAnnotation: grafana_folder
+        provider:
+          foldersFromFilesStructure: true
+      datasources:
+        enabled: true
 
   prometheus:
     enabled: true
@@ -58,6 +129,14 @@ kube-prometheus-stack:
             - prometheus.k3s.nf.lab
 
     prometheusSpec:
+      command: ["/bin/sh", "-c", "sleep 3600"]
+      resources:
+        requests:
+          cpu: 1000m
+          memory: 2Gi
+        limits:
+          cpu: 2000m
+          memory: 4Gi
       externalUrl: https://prometheus.k3s.nf.lab
       ruleSelector: {}
       ruleNamespaceSelector: {}
@@ -77,6 +156,12 @@ kube-prometheus-stack:
         whenScaled: Retain
       storageSpec:
         volumeClaimTemplate:
+          metadata:
+            annotations:
+              # Tells Helm/ArgoCD to leave this PVC alone during a chart uninstall
+              helm.sh/resource-policy: keep
+              # Explicitly orders Argo CD to skip this PVC during pruning operations
+              argocd.argoproj.io/sync-options: Prune=false
           spec:
             accessModes: ["ReadWriteOnce"]
             resources:

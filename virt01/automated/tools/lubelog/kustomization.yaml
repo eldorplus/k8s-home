@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: tools
+
+labels:
+  - pairs:
+      app: lubelog
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - serviceaccount.yaml
+  - lubelog-sealed.yaml
+#   - backup-schedule.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true

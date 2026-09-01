@@ -1,0 +1,34 @@
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: l2-ip
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install  
+spec:
+  ipAddressPools:
+    - vlan1000-apps
+    - vlan1000-infra
+    - vlan1000-restricted
+  nodeSelectors:
+   - matchLabels:
+      kubernetes.io/hostname: virt01
+  interfaces:
+    - eno1.1000
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: l2-vlan1400
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install  
+spec:
+  ipAddressPools:
+    - vlan1400
+  nodeSelectors:
+    - matchLabels:
+       kubernetes.io/hostname: virt01
+  interfaces:
+    - br1400

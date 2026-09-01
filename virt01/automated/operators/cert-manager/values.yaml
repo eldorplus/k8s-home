@@ -1,0 +1,21 @@
+---
+# https://artifacthub.io/packages/helm/cert-manager/cert-manager
+
+cert-manager:
+  crds:
+    enabled: true
+    keep: true
+
+  extraArgs:
+    - --dns01-recursive-nameservers-only
+    - --dns01-recursive-nameservers=10.0.0.1:53
+
+  podDnsPolicy: "None"
+  podDnsConfig:
+    nameservers:
+      - "10.0.0.1"
+
+  prometheus:
+    enabled: true
+    servicemonitor:
+      enabled: true

@@ -1,0 +1,117 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: rspamd
+  labels:
+    app: rspamd
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: rspamd
+  template:
+    metadata:
+      labels:
+        app: rspamd
+    spec:
+      serviceAccountName: rspamd-sa
+      initContainers:
+        - name: disable-ipv6
+          image: busybox:latest
+          command: ["sh", "-c", "sysctl -w net.ipv6.conf.all.disable_ipv6=1 && sysctl -w net.ipv6.conf.default.disable_ipv6=1"]
+          securityContext:
+            privileged: true
+      containers:
+        - name: rspamd
+          image: ghcr.io/nforceroh/k8s-rspamd:latest
+          imagePullPolicy: Always
+          env:
+            - name: ADMIN_PASS
+              value: '$2$s3dymobyg84ktaksyhkf8der7juzcnza$omo3btjw5kkawjpsnwx4teh7xfny7136aw9xk1a5w6r3ay4714rb'
+            - name: RSPAMD_DNS_SERVERS
+              value: "127.0.0.1"
+            - name: DEBUG_MODULES
+              value: "metadata_exporter,gpt"
+            - name: CLAMAV_HOST
+              value: "clamav.mail.svc.cluster.local"
+            - name: CLAMAV_PORT
+              value: "3310"
+            - name: DCC_HOST
+              value: "dcc-svc"
+            - name: DCC_PORT
+              value: "10045"
+            - name: REDIS_HOST
+              value: "redis-master.databases.svc.cluster.local"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_DB
+              value: "7"
+            - name: LOG_LEVEL
+              value: "info" # error,warning,info,debug
+            - name: MAILGALLOWS_HOST
+              value: "mailgallows-svc.mail.svc.cluster.local"
+            - name: MAILGALLOWS_PORT
+              value: "5000"
+            - name: TZ
+              value: "America/New_York"
+            - name: GPT_URL
+              value: "http://ollama.ai.svc.cluster.local:11434/v1/chat/completions"
+            - name: GPT_MODEL
+              value: "qwen2.5:7b,gemma3:4b"
+            - name: GPT_ENABLED
+              value: "false"
+            # - name: PLUGIN_DKIM
+            #   value: "true"
+          ports:
+            - containerPort: 11332
+              name: milter-port
+              protocol: TCP
+            - containerPort: 11333
+              name: worker-port
+              protocol: TCP
+            - containerPort: 11334
+              name: web-port
+              protocol: TCP
+            - containerPort: 11335
+              name: fuzzy-port
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "1Gi"
+          volumeMounts:
+            - name: rspamd-pv
+              mountPath: /var/lib/rspamd
+            - name: dshm
+              mountPath: /dev/shm
+        - name: unbound
+          image: mvance/unbound:latest
+          ports:
+            - containerPort: 53
+              name: dns-udp
+              protocol: UDP
+          resources:
+            limits:
+              memory: 1Gi
+              cpu: 200m
+          securityContext:
+            capabilities:
+              add: ["NET_BIND_SERVICE"]
+          volumeMounts:
+            - name: unbound-config-volume
+              mountPath: /opt/unbound/etc/unbound/unbound.conf
+              subPath: unbound.conf              
+      dnsPolicy: "ClusterFirst"
+      volumes:
+        - name: rspamd-pv
+          persistentVolumeClaim:
+            claimName: rspamd-pvc
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: "512Mi"
+        - name: unbound-config-volume
+          configMap:
+            name: unbound-config

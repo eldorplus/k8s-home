@@ -1,4 +1,8 @@
 openebs:
+  csi:
+    volumeSnapshots:
+      enabled: true
+
   zfs-localpv:
     crds:
       zfsLocalPv:
@@ -6,7 +10,9 @@ openebs:
       csi:
         volumeSnapshots:
           enabled: true
+
   lvm-localpv:
+    enabled: false
     crds:
       lvmLocalPv:
         enabled: false
@@ -14,6 +20,7 @@ openebs:
         volumeSnapshots:
           enabled: false
   mayastor:
+    enabled: false
     csi:
       node:
         initContainers:
@@ -27,9 +34,7 @@ openebs:
     replicated:
       mayastor:
         enabled: false
-
   loki:
     enabled: false        
-
   alloy:
     enabled: false
