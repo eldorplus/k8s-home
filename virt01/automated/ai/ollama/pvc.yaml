@@ -3,10 +3,13 @@ kind: PersistentVolumeClaim
 metadata:
   name: ollama
   namespace: ai
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+    helm.sh/resource-policy: keep  
 spec:
   accessModes:
   - ReadWriteOnce
   resources:
     requests:
-      storage: 50Gi
+      storage: 100Gi
   volumeMode: Filesystem

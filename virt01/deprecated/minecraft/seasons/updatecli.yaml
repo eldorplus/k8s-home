@@ -1,0 +1,18 @@
+
+sources:
+  lastMinorRelease:
+    kind: helmchart
+    spec:
+      url: "https://itzg.github.io/minecraft-server-charts"
+      name: "minecraft"
+      version: "5.*.*"
+conditions: {}
+targets:
+  chart:
+    name: Bump Chart dependencies
+    kind: helmchart
+    spec:
+      Name: "/home/runner/work/k8s-home/k8s-home/virt01/deprecated/minecraft/seasons"
+      file: "Chart.yaml"
+      key: "$.dependencies[0].version"
+      versionIncrement: "patch"

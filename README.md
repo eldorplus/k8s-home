@@ -1,10 +1,19 @@
 # k8s-home
 
+## Freeze a Helm chart dependency
+
+Add the dependency name to `EXCLUDED_CHARTS` in `updatecli/chart_bumper.py`. The chart bumper skips excluded dependencies in both diff and apply mode, leaving the current `version` unchanged. Remove the name from the list to resume automatic bumps.
+
 ## Prep workstation
 
 ```bash
-git clone git@github.com:nforceroh/k8s-home.git
+git clone --recurse-submodules git@github.com:nforceroh/k8s-home.git
 ```
+
+## Local Arr MCP
+
+See [`mcp/README.md`](mcp/README.md) for the repo-local Arr MCP setup and
+instructions for adding future MCP servers.
 
 ## Install ansible and tools to WSL instance
 

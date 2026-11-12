@@ -1,0 +1,51 @@
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Backup
+metadata:
+  name: mariadb-daily-r2-v2
+spec:
+  mariaDbRef:
+    name: mariadb
+  schedule:
+    cron: 0 2 * * *
+    suspend: false
+  maxRetention: 336h
+  storage:
+    s3:
+      bucket: k8s-data
+      prefix: mariadb-backups/daily/
+      endpoint: c8447e01e7c0018cf456923099f43457.r2.cloudflarestorage.com
+      region: auto
+      tls:
+        enabled: true
+      accessKeyIdSecretKeyRef:
+        name: r2-backup-secret
+        key: access-key-id
+      secretAccessKeySecretKeyRef:
+        name: r2-backup-secret
+        key: secret-access-key
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Backup
+metadata:
+  name: mariadb-monthly-r2-v2
+spec:
+  mariaDbRef:
+    name: mariadb
+  schedule:
+    cron: 0 3 1 * *
+    suspend: false
+  maxRetention: 2160h
+  storage:
+    s3:
+      bucket: k8s-data
+      prefix: mariadb-backups/monthly/
+      endpoint: c8447e01e7c0018cf456923099f43457.r2.cloudflarestorage.com
+      region: auto
+      tls:
+        enabled: true
+      accessKeyIdSecretKeyRef:
+        name: r2-backup-secret
+        key: access-key-id
+      secretAccessKeySecretKeyRef:
+        name: r2-backup-secret
+        key: secret-access-key

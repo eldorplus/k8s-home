@@ -1,0 +1,71 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: droppedneedle
+  labels:
+    app: droppedneedle
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: droppedneedle
+  template:
+    metadata:
+      labels:
+        app: droppedneedle
+    spec:
+      serviceAccountName: droppedneedle-sa
+      securityContext:
+        runAsUser: 3000
+        runAsGroup: 3000
+        fsGroup: 3000
+      containers:
+        - name: droppedneedle
+          image: ghcr.io/droppedneedle/droppedneedle:latest
+          imagePullPolicy: Always
+          env:
+            - name: PUID
+              value: "3000"
+            - name: PGID
+              value: "3000"
+            - name: PORT
+              value: "8688"
+            - name: TZ
+              value: "America/New_York"
+            - name: SLSKD_DOWNLOADS_PATH
+              value: "/slskd/downloads"
+          ports:
+            - name: http
+              containerPort: 8688
+          volumeMounts:
+            - name: dn-config
+              mountPath: /app/config
+            - name: dn-cache
+              mountPath: /app/cache
+            - name: music-clean
+              mountPath: /music
+            - name: slskd-downloads
+              mountPath: /slskd/downloads
+            - name: picard-post
+              mountPath: /PicardPost
+      volumes:
+        - name: dn-config
+          persistentVolumeClaim:
+            claimName: dn-config-pvc
+        - name: dn-cache
+          persistentVolumeClaim:
+            claimName: dn-cache-pvc
+        - name: music-clean
+          hostPath:
+            path: /mnt/ssd01/Music/Cleaned
+            type: Directory
+        - name: slskd-downloads
+          hostPath:
+            path: /mnt/ssd01/Music/downloads/slskd
+            type: Directory
+        - name: picard-post
+          hostPath:
+            path: /mnt/ssd01/Music/PicardPost
+            type: Directory

@@ -1,0 +1,54 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: music-int-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: nf-lab
+    cert-manager.io/private-key-rotation-policy: Always
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    external-dns.kubernetes.io/target: traefik.k3s.nf.lab
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: music.k3s.nf.lab
+      http:
+        paths:
+          - backend:
+              service:
+                name: droppedneedle-svc
+                port:
+                  number: 8688
+            path: /
+            pathType: Prefix
+  tls:
+    - hosts:
+        - music.k3s.nf.lab
+      secretName: music-int-cert-tls
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: music-ext-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+    cert-manager.io/private-key-rotation-policy: Always
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    external-dns.kubernetes.io/target: ipv4.nforcer.com
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: music.nforcer.com
+      http:
+        paths:
+          - backend:
+              service:
+                name: droppedneedle-svc
+                port:
+                  number: 8688
+            path: /
+            pathType: Prefix
+  tls:
+    - hosts:
+        - music.nforcer.com
+      secretName: music-ext-cert-tls

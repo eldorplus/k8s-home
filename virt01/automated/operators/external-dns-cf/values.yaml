@@ -1,0 +1,34 @@
+# https://github.com/kubernetes-sigs/external-dns/blob/master/charts/external-dns/values.yaml
+
+external-dns:
+  serviceMonitor:
+    enabled: true
+  ## Watch these resources for new DNS records
+  sources:
+    - crd
+    - ingress
+    - service
+    
+   ## List of domains that can be managed. 
+  domainFilters: ["nforcer.com"]
+  # excludeDomains: ["nf.lab","k3s.nf.lab"]
+  # These help tell which records are owned by external-dns.
+  registry: "txt"
+  txtOwnerId: "k8s"
+  txtPrefix: "txt-"
+  logLevel: debug
+  policy: sync
+
+ ## use google as the dns provider
+  provider: 
+    name: cloudflare
+  extraArgs:
+    - --cloudflare-dns-records-per-page=5000
+    - --cloudflare-record-comment="provisioned by external-dns" 
+#    - --default-targets="b9d74614-bf1b-46e2-8b36-f47937a66525"
+  env:
+    - name: CF_API_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: cf-api-token
+          key: cloudflare_api_token

@@ -1,0 +1,28 @@
+---
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: mines01-dns
+  namespace: minecraft
+  annotations:
+    external-dns: public
+spec:
+  endpoints:
+  - dnsName: mines01.nforcer.com
+    recordTTL: 180
+    recordType: CNAME
+    targets:
+    - ipv4.nforcer.com
+---
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: mines01-srv
+  namespace: minecraft
+spec:
+  endpoints:
+  - dnsName: _minecraft._tcp.mines01.nforcer.com
+    recordTTL: 180
+    recordType: SRV
+    targets:
+     - 1 1 25565 ipv4.nforcer.com.

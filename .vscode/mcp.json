@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "arr-mcp": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "${workspaceFolder}/mcp/run-arr-mcp.sh"
+      ],
+      "envFile": "/home/sylvain/gitdev/k8s-home-secrets/mcp/arr-mcp.env"
+    }
+  }
+}
